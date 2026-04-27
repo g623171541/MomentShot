@@ -2,16 +2,19 @@
 //  MomentShotApp.swift
 //  MomentShot
 //
-//  Created by HET on 2026/4/27.
-//
 
 import SwiftUI
 
 @main
 struct MomentShotApp: App {
+    init() {
+        MediaStore.bootstrap()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .preferredColorScheme(.dark)
         }
     }
 }

@@ -185,7 +185,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -243,7 +243,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -263,19 +263,20 @@
 				DEVELOPMENT_TEAM = A39Q776AMJ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "MomentShot \u9700\u8981\u4f7f\u7528\u76f8\u673a\u4ee5\u4f9b\u60a8\u62cd\u6444\u7167\u7247\u4e0e\u89c6\u9891\u3002";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "MomentShot \u9700\u8981\u4f7f\u7528\u9ea6\u514b\u98ce\u4ee5\u5728\u5f55\u50cf\u65f6\u540c\u6b65\u5f55\u5236\u58f0\u97f3\u3002";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "\u4ec5\u5728\u60a8\u4e3b\u52a8\u5bfc\u51fa\u65f6\uff0cMomentShot \u4f1a\u5c06\u5a92\u4f53\u4fdd\u5b58\u5230\u7cfb\u7edf\u76f8\u518c\u3002";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "\u5982\u679c\u60a8\u542f\u7528\u4e86\u5730\u7406\u6807\u7b7e\uff0cMomentShot \u4f1a\u5c06\u5f53\u524d\u4f4d\u7f6e\u5199\u5165\u7167\u7247\u7684 EXIF \u4fe1\u606f\u3002";
+				INFOPLIST_KEY_NSCameraUsageDescription = "用于拍照和录像";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "u5982u679cu60a8u542fu7528u4e86u5730u7406u6807u7b7euff0cMomentShot u4f1au5c06u5f53u524du4f4du7f6eu5199u5165u7167u7247u7684 EXIF u4fe1u606fu3002";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "录像是记录原始声音";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "存储照片和视频";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleLightContent;
-				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
-				INFOPLIST_KEY_UIViewControllerBasedStatusBarAppearance = NO;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
+				INFOPLIST_KEY_UIViewControllerBasedStatusBarAppearance = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -303,19 +304,20 @@
 				DEVELOPMENT_TEAM = A39Q776AMJ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSCameraUsageDescription = "MomentShot \u9700\u8981\u4f7f\u7528\u76f8\u673a\u4ee5\u4f9b\u60a8\u62cd\u6444\u7167\u7247\u4e0e\u89c6\u9891\u3002";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "MomentShot \u9700\u8981\u4f7f\u7528\u9ea6\u514b\u98ce\u4ee5\u5728\u5f55\u50cf\u65f6\u540c\u6b65\u5f55\u5236\u58f0\u97f3\u3002";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "\u4ec5\u5728\u60a8\u4e3b\u52a8\u5bfc\u51fa\u65f6\uff0cMomentShot \u4f1a\u5c06\u5a92\u4f53\u4fdd\u5b58\u5230\u7cfb\u7edf\u76f8\u518c\u3002";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "\u5982\u679c\u60a8\u542f\u7528\u4e86\u5730\u7406\u6807\u7b7e\uff0cMomentShot \u4f1a\u5c06\u5f53\u524d\u4f4d\u7f6e\u5199\u5165\u7167\u7247\u7684 EXIF \u4fe1\u606f\u3002";
+				INFOPLIST_KEY_NSCameraUsageDescription = "用于拍照和录像";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "u5982u679cu60a8u542fu7528u4e86u5730u7406u6807u7b7euff0cMomentShot u4f1au5c06u5f53u524du4f4du7f6eu5199u5165u7167u7247u7684 EXIF u4fe1u606fu3002";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "录像是记录原始声音";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "存储照片和视频";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleLightContent;
-				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
-				INFOPLIST_KEY_UIViewControllerBasedStatusBarAppearance = NO;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
+				INFOPLIST_KEY_UIViewControllerBasedStatusBarAppearance = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
