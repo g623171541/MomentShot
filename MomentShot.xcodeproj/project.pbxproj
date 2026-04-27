@@ -16,6 +16,11 @@
 			path = MomentShot;
 			sourceTree = "<group>";
 		};
+		03ADD1D72F9F0C4700D3C23C /* PRD */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PRD;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -32,6 +37,7 @@
 		03ADD1B42F9F037A00D3C23C = {
 			isa = PBXGroup;
 			children = (
+				03ADD1D72F9F0C4700D3C23C /* PRD */,
 				03ADD1BF2F9F037A00D3C23C /* MomentShot */,
 				03ADD1BE2F9F037A00D3C23C /* Products */,
 			);
@@ -62,6 +68,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				03ADD1BF2F9F037A00D3C23C /* MomentShot */,
+				03ADD1D72F9F0C4700D3C23C /* PRD */,
 			);
 			name = MomentShot;
 			packageProductDependencies = (
