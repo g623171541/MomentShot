@@ -70,57 +70,51 @@ final class ThumbnailLoader: ObservableObject {
     }
 }
 
+/// 取景器左下角的"最近一条媒体"缩略图（只是视觉，不带点击行为；
+/// 由外层 `NavigationLink` 包裹以触发跳转到相册）。
 struct ThumbnailButton: View {
 
     let item: MediaItem?
-    let action: () -> Void
 
     @StateObject private var loader = ThumbnailLoader()
 
     var body: some View {
-        Button(action: {
-            HapticManager.light()
-            action()
-        }) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.white.opacity(0.08))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(Color.white.opacity(0.6), lineWidth: 1)
-                    )
+        ZStack {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.white.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.white.opacity(0.6), lineWidth: 1)
+                )
 
-                if let img = loader.image {
-                    Image(uiImage: img)
-                        .resizable()
-                        .scaledToFill()
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                } else {
-                    Image(systemName: "photo")
-                        .foregroundColor(.white.opacity(0.4))
-                }
+            if let img = loader.image {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            } else {
+                Image(systemName: "photo")
+                    .foregroundColor(.white.opacity(0.4))
+            }
 
-                if item?.type == .video {
-                    VStack {
+            if item?.type == .video {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 9, weight: .black))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(Color.black.opacity(0.5))
+                            .clipShape(Capsule())
+                            .padding(4)
                         Spacer()
-                        HStack {
-                            Image(systemName: "play.fill")
-                                .font(.system(size: 9, weight: .black))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 2)
-                                .background(Color.black.opacity(0.5))
-                                .clipShape(Capsule())
-                                .padding(4)
-                            Spacer()
-                        }
                     }
                 }
             }
-            .frame(width: 40, height: 40)
         }
-        .buttonStyle(.plain)
-        .disabled(item == nil)
+        .frame(width: 40, height: 40)
         .opacity(item == nil ? 0.4 : 1)
         .onChange(of: item?.id) { _ in loader.load(item: item) }
         .onAppear { loader.load(item: item) }

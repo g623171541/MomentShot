@@ -18,6 +18,7 @@ struct CameraRootView: View {
     @StateObject private var settings = AppSettings.shared
     @StateObject private var index = MediaIndex.shared
     @StateObject private var permission = PermissionManager.shared
+    @StateObject private var volumeButton = VolumeButtonObserver()
 
     // 取景器交互状态
     @State private var previewView: PreviewBackingView?
@@ -28,26 +29,14 @@ struct CameraRootView: View {
 
     @State private var shutterPhase: ShutterPhase = .idle
 
-    // 倒计时
-    @State private var countdownRemaining: Int = 0
-    @State private var countdownTimer: Timer?
-    @State private var pendingActionAfterCountdown: PendingAction = .none
-
     // 闪白动画
     @State private var flashScreenWhite: Bool = false
 
     // 错误提示
     @State private var errorMessage: String?
 
-    // 浏览器（阶段 4 占位 - 本轮先跳到一个空的 sheet）
-    @State private var showBrowser = false
-
-    // 设置（阶段 5 占位 - 本轮先跳到一个空的 sheet）
+    /// 是否已推入设置页（与图库相同，横向 push）
     @State private var showSettings = false
-
-    private enum PendingAction {
-        case none, photo, recordStart
-    }
 
     private struct FocusInfo: Equatable {
         let id = UUID()
@@ -56,6 +45,14 @@ struct CameraRootView: View {
     }
 
     var body: some View {
+        NavigationView {
+            cameraScreen
+                .navigationBarHidden(true)
+        }
+        .navigationViewStyle(.stack)
+    }
+
+    private var cameraScreen: some View {
         GeometryReader { geo in
             ZStack {
                 Color.black.ignoresSafeArea()
@@ -65,13 +62,6 @@ struct CameraRootView: View {
                     cameraPreviewLayer(in: geo)
                 } else {
                     permissionPlaceholder
-                }
-
-                // 网格
-                if settings.showGrid {
-                    GridOverlayView()
-                        .padding(.horizontal, 0)
-                        .ignoresSafeArea()
                 }
 
                 // 对焦框 + 曝光滑杆
@@ -97,14 +87,6 @@ struct CameraRootView: View {
                     Color.white
                         .ignoresSafeArea()
                         .transition(.opacity)
-                }
-
-                // 倒计时浮层
-                if countdownRemaining > 0 {
-                    CountdownOverlayView(seconds: countdownRemaining) {
-                        cancelCountdown()
-                    }
-                    .transition(.opacity)
                 }
 
                 // 顶部 + 底部 控件
@@ -152,23 +134,34 @@ struct CameraRootView: View {
         .task { await camera.bootstrap(initialPosition: settings.cameraPosition) }
         .onAppear {
             wireCameraCallbacks()
-            camera.setFlashMode(settings.flashMode)
+            wireVolumeButton()
+            volumeButton.start()
         }
-        .onChange(of: settings.flashMode) { camera.setFlashMode($0) }
-        .onDisappear { camera.stopSession() }
+        .onDisappear {
+            camera.stopSession()
+            volumeButton.stop()
+        }
         .onChange(of: camera.lastError) { newValue in
             guard let msg = newValue, !msg.isEmpty else { return }
             showError(msg)
         }
         .onChange(of: camera.position) { settings.cameraPosition = $0 }
-        .sheet(isPresented: $showBrowser) {
-            // 阶段 4 占位
-            BrowserPlaceholderView()
+        .onChange(of: showSettings) { isOpen in
+            if !isOpen { camera.applyVideoSettings() }
         }
-        .sheet(isPresented: $showSettings) {
-            // 阶段 5 占位
-            SettingsPlaceholderView()
+        .background(settingsNavigationLink)
+    }
+
+    /// 隐藏 NavigationLink，由齿轮按钮置 `showSettings = true` 触发横向 push
+    private var settingsNavigationLink: some View {
+        NavigationLink(
+            destination: SettingsContentView(cameraPosition: camera.position),
+            isActive: $showSettings
+        ) {
+            EmptyView()
         }
+        .frame(width: 0, height: 0)
+        .hidden()
     }
 
     // MARK: - 取景器层
@@ -246,8 +239,6 @@ struct CameraRootView: View {
 
     private var topBar: some View {
         TopToolbarView(
-            flashMode: $settings.flashMode,
-            countdownMode: $settings.countdownMode,
             onTapSettings: { showSettings = true },
             isDisabled: camera.isRecording || shutterPhase == .locked
         )
@@ -255,9 +246,13 @@ struct CameraRootView: View {
 
     private var bottomBar: some View {
         HStack {
-            ThumbnailButton(item: index.latest) {
-                showBrowser = true
+            NavigationLink {
+                MediaLibraryView()
+            } label: {
+                ThumbnailButton(item: index.latest)
             }
+            .buttonStyle(.plain)
+            .simultaneousGesture(TapGesture().onEnded { HapticManager.light() })
             .disabled(camera.isRecording || shutterPhase == .locked)
             .opacity((camera.isRecording || shutterPhase == .locked) ? 0.4 : 1)
 
@@ -359,26 +354,41 @@ struct CameraRootView: View {
         }
     }
 
-    private func handleTapPhoto() {
-        // 点按拍照：考虑倒计时
-        if settings.countdownMode != .off {
-            startCountdown(action: .photo)
-            return
+    /// 把 AppSettings.volumeButtonAction 映射成实际行为
+    private func wireVolumeButton() {
+        volumeButton.onPress = { _ in
+            // 浏览器 / 设置 打开时不响应，避免误触
+            // 设置页打开时不响应；进入相册（NavigationLink）后 onDisappear 会停掉 KVO
+            guard !showSettings else { return }
+
+            switch settings.volumeButtonAction {
+            case .takePhoto:
+                if camera.isRecording || shutterPhase == .locked { return }
+                handleTapPhoto()
+            case .toggleRecording:
+                if camera.isRecording {
+                    camera.stopRecording()
+                    shutterPhase = .idle
+                } else {
+                    handleStartRecording()
+                    shutterPhase = .recording
+                }
+            case .zoom:
+                let target = camera.currentZoomFactor < camera.maxZoomFactor ? camera.currentZoomFactor + 0.5 : camera.minZoomFactor
+                camera.setZoom(target, ramp: true)
+                triggerZoomIndicator()
+            case .disabled:
+                break
+            }
         }
+    }
+
+    private func handleTapPhoto() {
         triggerWhiteFlash()
         camera.capturePhoto()
     }
 
     private func handleStartRecording() {
-        // 长按行为：录像 or 连拍
-        if settings.longPressBehavior == .burst {
-            // 连拍 — 阶段 4 实现，本轮提示
-            showError("高速连拍将在后续版本中提供")
-            // 同时回到 idle 状态
-            shutterPhase = .idle
-            return
-        }
-        // 倒计时模式下也直接开录
         camera.startRecording()
     }
 
@@ -397,55 +407,6 @@ struct CameraRootView: View {
         }
     }
 
-    // MARK: - 倒计时
-
-    private func startCountdown(action: PendingAction) {
-        cancelCountdown()
-        pendingActionAfterCountdown = action
-        countdownRemaining = settings.countdownMode.rawValue
-        guard countdownRemaining > 0 else {
-            performPendingAction()
-            return
-        }
-        let timer = Timer(timeInterval: 1.0, repeats: true) { _ in
-            DispatchQueue.main.async {
-                countdownRemaining -= 1
-                HapticManager.light()
-                if countdownRemaining <= 0 {
-                    cancelCountdownTimerOnly()
-                    performPendingAction()
-                }
-            }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        countdownTimer = timer
-    }
-
-    private func cancelCountdown() {
-        cancelCountdownTimerOnly()
-        countdownRemaining = 0
-        pendingActionAfterCountdown = .none
-    }
-
-    private func cancelCountdownTimerOnly() {
-        countdownTimer?.invalidate()
-        countdownTimer = nil
-    }
-
-    private func performPendingAction() {
-        switch pendingActionAfterCountdown {
-        case .photo:
-            triggerWhiteFlash()
-            camera.capturePhoto()
-        case .recordStart:
-            camera.startRecording()
-        case .none:
-            break
-        }
-        pendingActionAfterCountdown = .none
-        countdownRemaining = 0
-    }
-
     // MARK: - 错误
 
     private func showError(_ msg: String) {
@@ -456,75 +417,3 @@ struct CameraRootView: View {
     }
 }
 
-// MARK: - 阶段 4/5 占位（下一轮替换）
-
-private struct BrowserPlaceholderView: View {
-    @Environment(\.dismiss) private var dismiss
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            VStack(spacing: 16) {
-                Image(systemName: "photo.on.rectangle.angled")
-                    .font(.system(size: 56))
-                    .foregroundColor(.white.opacity(0.7))
-                Text("媒体浏览器（阶段 4 实现）")
-                    .foregroundColor(.white)
-                Button("关闭") { dismiss() }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.white)
-                    .foregroundColor(.black)
-            }
-        }
-        .preferredColorScheme(.dark)
-    }
-}
-
-private struct SettingsPlaceholderView: View {
-    @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var settings = AppSettings.shared
-
-    var body: some View {
-        NavigationView {
-            Form {
-                Section("长按行为") {
-                    Picker("长按快门键", selection: $settings.longPressBehavior) {
-                        ForEach(LongPressBehavior.allCases) { Text($0.displayLabel).tag($0) }
-                    }
-                }
-                Section("显示辅助") {
-                    Toggle("九宫格", isOn: $settings.showGrid)
-                    Toggle("水平仪（即将上线）", isOn: $settings.showLevel).disabled(true)
-                    Toggle("双击空白切换镜头", isOn: $settings.enableDoubleTapFlip)
-                    Toggle("单指变焦条", isOn: $settings.enableSingleFingerZoom)
-                }
-                Section("反馈") {
-                    Toggle("触觉反馈", isOn: $settings.hapticEnabled)
-                    Toggle("静音拍摄（需符合地区法规）", isOn: $settings.silentShutter)
-                }
-                Section("拍摄参数") {
-                    Picker("视频分辨率", selection: $settings.videoResolution) {
-                        ForEach(VideoResolution.allCases) { Text($0.displayLabel).tag($0) }
-                    }
-                    Picker("视频帧率", selection: $settings.videoFrameRate) {
-                        ForEach(VideoFrameRate.allCases) { Text($0.displayLabel).tag($0) }
-                    }
-                    Picker("照片质量", selection: $settings.photoResolution) {
-                        ForEach(PhotoResolution.allCases) { Text($0.displayLabel).tag($0) }
-                    }
-                }
-                Section("提示") {
-                    Text("完整设置（音量键 / 存储管理等）将在下一阶段提供。")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .navigationTitle("设置")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }
-                }
-            }
-        }
-        .preferredColorScheme(.dark)
-    }
-}

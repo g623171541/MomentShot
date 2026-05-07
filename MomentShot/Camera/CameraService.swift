@@ -2,7 +2,7 @@
 //  CameraService.swift
 //  MomentShot
 //
-//  AVCaptureSession 的完整封装：搭建、镜头切换、对焦/测光、变焦、闪光灯、
+//  AVCaptureSession 的完整封装：搭建、镜头切换、对焦/测光、变焦、
 //  拍照与录像。会话操作均派发到 sessionQueue，UI 状态通过 @Published 暴露。
 //
 
@@ -55,8 +55,6 @@ final class CameraService: NSObject, ObservableObject {
 
     private let photoOutput = AVCapturePhotoOutput()
     private let movieOutput = AVCaptureMovieFileOutput()
-
-    private var pendingFlashMode: FlashMode = .auto
 
     private var recordingStartDate: Date?
     private var recordingTimer: Timer?
@@ -126,7 +124,10 @@ final class CameraService: NSObject, ObservableObject {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
 
-        applySessionPreset()
+        // 使用 .inputPriority 使我们手动指定的 device.activeFormat 不被 session 覆盖
+        if session.canSetSessionPreset(.inputPriority) {
+            session.sessionPreset = .inputPriority
+        }
 
         do {
             try addVideoInput(for: position)
@@ -142,23 +143,6 @@ final class CameraService: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 self.setupError = error.localizedDescription
             }
-        }
-    }
-
-    private func applySessionPreset() {
-        let target = preset(for: AppSettings.shared.videoResolution)
-        if session.canSetSessionPreset(target) {
-            session.sessionPreset = target
-        } else if session.canSetSessionPreset(.high) {
-            session.sessionPreset = .high
-        }
-    }
-
-    private func preset(for resolution: VideoResolution) -> AVCaptureSession.Preset {
-        switch resolution {
-        case .hd720:  return .hd1280x720
-        case .hd1080: return .hd1920x1080
-        case .uhd4k:  return .hd4K3840x2160
         }
     }
 
@@ -178,7 +162,7 @@ final class CameraService: NSObject, ObservableObject {
                 NSLocalizedDescriptionKey: "无法添加视频输入"
             ])
         }
-        applyFrameRate(to: device)
+        applyFormatAndFrameRate(to: device)
     }
 
     private func addAudioInput() throws {
@@ -215,30 +199,70 @@ final class CameraService: NSObject, ObservableObject {
     }
 
     private func bestDevice(for position: AVCaptureDevice.Position) -> AVCaptureDevice? {
-        let types: [AVCaptureDevice.DeviceType]
-        if #available(iOS 15.4, *) {
-            types = [.builtInTripleCamera, .builtInDualWideCamera, .builtInDualCamera, .builtInWideAngleCamera]
-        } else {
-            types = [.builtInDualWideCamera, .builtInDualCamera, .builtInWideAngleCamera]
-        }
-        let session = AVCaptureDevice.DiscoverySession(deviceTypes: types, mediaType: .video, position: position)
-        return session.devices.first ?? AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position)
+        let pos: CameraPosition = (position == .front) ? .front : .back
+        return CameraCapabilities.device(for: pos)
     }
 
-    private func applyFrameRate(to device: AVCaptureDevice) {
-        let target = Double(AppSettings.shared.videoFrameRate.rawValue)
-        guard let format = device.activeFormat as AVCaptureDevice.Format? else { return }
-        let supports = format.videoSupportedFrameRateRanges.contains { range in
-            target >= range.minFrameRate && target <= range.maxFrameRate
-        }
-        guard supports else { return }
+    /// 把 AppSettings 偏好的分辨率/帧率应用到 device.activeFormat。
+    /// 若设备不支持偏好值，会自动回退到该镜头位置上最接近的可用项。
+    private func applyFormatAndFrameRate(to device: AVCaptureDevice) {
+        let pos: CameraPosition = (device.position == .front) ? .front : .back
+
+        let prefRes = AppSettings.shared.videoResolution
+        let supportedRes = CameraCapabilities.supportedResolutions(for: pos)
+        let resolved: VideoResolution = {
+            if supportedRes.contains(where: { $0 == prefRes }) { return prefRes }
+            // 回退：选不大于偏好值的最大支持项
+            if let down = supportedRes.first(where: { $0.pixels <= prefRes.pixels }) {
+                return down
+            }
+            return supportedRes.first ?? prefRes
+        }()
+
+        let prefFPS = AppSettings.shared.videoFrameRate.fps
+        let supportedFPS = CameraCapabilities.supportedFrameRates(for: pos, resolution: resolved).map(\.fps)
+        let resolvedFPS: Int = supportedFPS.contains(prefFPS) ? prefFPS : (supportedFPS.last ?? 30)
+
+        guard let format = CameraCapabilities.bestFormat(
+            for: device,
+            targetWidth: resolved.width,
+            targetHeight: resolved.height,
+            targetFPS: resolvedFPS
+        ) else { return }
+
         do {
             try device.lockForConfiguration()
-            device.activeVideoMinFrameDuration = CMTimeMake(value: 1, timescale: Int32(target))
-            device.activeVideoMaxFrameDuration = CMTimeMake(value: 1, timescale: Int32(target))
+            device.activeFormat = format
+            device.activeVideoMinFrameDuration = CMTimeMake(value: 1, timescale: Int32(resolvedFPS))
+            device.activeVideoMaxFrameDuration = CMTimeMake(value: 1, timescale: Int32(resolvedFPS))
             device.unlockForConfiguration()
         } catch {
             // 忽略：不致命
+        }
+
+        // 当存储的偏好被回退时，把 AppSettings 同步回真实生效值，避免 UI 显示不一致
+        if resolved != prefRes || resolvedFPS != prefFPS {
+            DispatchQueue.main.async {
+                if AppSettings.shared.videoResolution != resolved {
+                    AppSettings.shared.videoResolution = resolved
+                }
+                if AppSettings.shared.videoFrameRate.fps != resolvedFPS {
+                    AppSettings.shared.videoFrameRate = VideoFrameRate(fps: resolvedFPS)
+                }
+            }
+        }
+    }
+
+    /// 设置面板修改了分辨率/帧率后调用：在不重建会话的情况下重新应用 device 配置。
+    func applyVideoSettings() {
+        sessionQueue.async { [weak self] in
+            guard let self, let device = self.videoDeviceInput?.device else { return }
+            self.session.beginConfiguration()
+            self.applyFormatAndFrameRate(to: device)
+            self.session.commitConfiguration()
+            DispatchQueue.main.async {
+                self.refreshZoomBoundsFromCurrentDevice()
+            }
         }
     }
 
@@ -261,7 +285,7 @@ final class CameraService: NSObject, ObservableObject {
                     self.session.addInput(currentInput)
                 }
                 self.session.commitConfiguration()
-                self.applyFrameRate(to: newDevice)
+                self.applyFormatAndFrameRate(to: newDevice)
 
                 DispatchQueue.main.async {
                     self.position = (newPosition == .front) ? .front : .back
@@ -277,42 +301,6 @@ final class CameraService: NSObject, ObservableObject {
                     self.lastError = "切换镜头失败：\(error.localizedDescription)"
                 }
             }
-        }
-    }
-
-    // MARK: - 闪光灯
-
-    func setFlashMode(_ mode: FlashMode) {
-        pendingFlashMode = mode
-        applyTorchIfNeeded(mode: mode)
-    }
-
-    private func applyTorchIfNeeded(mode: FlashMode) {
-        sessionQueue.async { [weak self] in
-            guard let device = self?.videoDeviceInput?.device, device.hasTorch else { return }
-            do {
-                try device.lockForConfiguration()
-                if mode == .torch {
-                    if device.isTorchModeSupported(.on) {
-                        try? device.setTorchModeOn(level: 1.0)
-                    }
-                } else {
-                    if device.isTorchModeSupported(.off) {
-                        device.torchMode = .off
-                    }
-                }
-                device.unlockForConfiguration()
-            } catch {
-                // 忽略
-            }
-        }
-    }
-
-    private func avFlashMode(from mode: FlashMode) -> AVCaptureDevice.FlashMode {
-        switch mode {
-        case .auto:  return .auto
-        case .on:    return .on
-        case .off, .torch: return .off
         }
     }
 
@@ -444,13 +432,7 @@ final class CameraService: NSObject, ObservableObject {
 
     private func makePhotoSettings() -> AVCapturePhotoSettings {
         let settings = AVCapturePhotoSettings(format: [AVVideoCodecKey: AVVideoCodecType.jpeg])
-        if let device = videoDeviceInput?.device, device.hasFlash {
-            let supportedFlashModes = photoOutput.supportedFlashModes
-            let flash = avFlashMode(from: pendingFlashMode)
-            if supportedFlashModes.contains(flash) {
-                settings.flashMode = flash
-            }
-        }
+        settings.flashMode = .off
         settings.isHighResolutionPhotoEnabled = photoOutput.isHighResolutionCaptureEnabled
         return settings
     }
@@ -474,8 +456,6 @@ final class CameraService: NSObject, ObservableObject {
             let fileName = MediaStore.makeFileName(type: .video, ext: "mov")
             let url = MediaStore.makeAbsoluteURL(for: .video, fileName: fileName)
             MediaStore.bootstrap()
-
-            self.applyTorchIfNeeded(mode: self.pendingFlashMode)
 
             let delegate = MovieRecorderDelegate(
                 fileName: fileName,

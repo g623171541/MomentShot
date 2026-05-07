@@ -265,7 +265,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "用于拍照和录像";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "u5982u679cu60a8u542fu7528u4e86u5730u7406u6807u7b7euff0cMomentShot u4f1au5c06u5f53u524du4f4du7f6eu5199u5165u7167u7247u7684 EXIF u4fe1u606fu3002";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "录像是记录原始声音";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "录像时记录原始声音";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "存储照片和视频";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -306,7 +306,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "用于拍照和录像";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "u5982u679cu60a8u542fu7528u4e86u5730u7406u6807u7b7euff0cMomentShot u4f1au5c06u5f53u524du4f4du7f6eu5199u5165u7167u7247u7684 EXIF u4fe1u606fu3002";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "录像是记录原始声音";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "录像时记录原始声音";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "存储照片和视频";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
